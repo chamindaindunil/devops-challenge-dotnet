@@ -70,16 +70,6 @@ stages:
           projects: '**/*UnitTests.csproj'
           arguments: '--collect "Code Coverage"'
           publishTestResults: true
-      # - task: DotNetCoreCLI@2
-      #   displayName: Run Integration Tests
-      #   inputs:
-      #     command: 'test'
-      #     projects: '**/*IntegrationTests.csproj'
-      #     arguments: '--configuration $(buildConfiguration)'
-      # - task: PublishCodeCoverageResults@2
-      #   displayName: Publish Code Coverage Results
-      #   inputs:
-      #     summaryFileLocation: '$(Build.SourcesDirectory)/**/Coverage/coverage.cobertura.xml'
       - task: SonarCloudAnalyze@2
         displayName: Sonar Scan Run
         inputs:
