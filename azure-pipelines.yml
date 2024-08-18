@@ -38,6 +38,10 @@ stages:
         displayName: Install NuGet packages
         inputs:
           restoreSolution: '$(solution)'
+      - task: WhiteSource@21
+        inputs:
+          cwd: '$(System.DefaultWorkingDirectory)'
+          projectName: 'devops-challenge-dotnet'
       - task: DotNetCoreCLI@2
         displayName: Restore
         inputs:
