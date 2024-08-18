@@ -38,10 +38,12 @@ stages:
         displayName: Install NuGet packages
         inputs:
           restoreSolution: '$(solution)'
-      - task: WhiteSource@21
+      - task: dependency-check-build-task@6
         inputs:
-          cwd: '$(System.DefaultWorkingDirectory)'
           projectName: 'devops-challenge-dotnet'
+          scanPath: '**/*.csproj'
+          format: 'HTML'
+          uploadReports: true
       - task: DotNetCoreCLI@2
         displayName: Restore
         inputs:
