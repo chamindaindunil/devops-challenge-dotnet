@@ -1,0 +1,114 @@
+# ASP.NET
+# Build and test ASP.NET projects.
+# Add steps that publish symbols, save build artifacts, deploy, and more:
+# https://docs.microsoft.com/azure/devops/pipelines/apps/aspnet/build-aspnet-4
+
+trigger:
+- main
+
+resources:
+- repo: self
+
+variables:
+  dockerRegistryServiceConnection: 'ACR'
+  imageRepository: '$(Build.Repository.Name)'
+  containerRegistry: 'salesapi'
+  dockerfilePath: '$(Build.SourcesDirectory)/Dockerfile'
+  tag: '$(Build.BuildId)'
+
+  vmImageName: 'windows-latest'
+
+stages:
+- stage: Build
+  displayName: Build Stage
+  jobs:
+    - job: Build
+      displayName: Build
+      pool:
+        vmImage: $(vmImageName)
+      steps:
+      - task: UseDotNet@2
+        displayName: Install Dot Net SDK
+        inputs:
+          packageType: 'sdk'
+          version: '5.x'
+      - task: NuGetToolInstaller@1
+        displayName: NuGet Install
+      - task: NuGetCommand@2
+        displayName: Install NuGet packages
+        inputs:
+          restoreSolution: '$(solution)'
+      - task: DotNetCoreCLI@2
+        displayName: Restore
+        inputs:
+          command: 'restore'
+          projects: '**/*.csproj'
+          feedsToUse: 'select'
+      - task: SonarCloudPrepare@2
+        inputs:
+          SonarCloud: 'SonarCloud'
+          organization: 'dev-oraganization'
+          scannerMode: 'MSBuild'
+          projectKey: 'devops-challenge-dotnet'
+          projectName: 'devops-challenge-dotnet'
+      - task: DotNetCoreCLI@2
+        displayName: Build
+        inputs:
+          command: 'build'
+          projects: '**/*.csproj'
+          arguments: '--configuration $(buildConfiguration)'
+      - task: DotNetCoreCLI@2
+        displayName: Run Unit Tests
+        inputs:
+          command: 'test'
+          projects: '**/*UnitTests.csproj'
+          arguments: '--collect "Code Coverage"'
+          publishTestResults: true
+      # - task: DotNetCoreCLI@2
+      #   displayName: Run Integration Tests
+      #   inputs:
+      #     command: 'test'
+      #     projects: '**/*IntegrationTests.csproj'
+      #     arguments: '--configuration $(buildConfiguration)'
+      # - task: PublishCodeCoverageResults@2
+      #   displayName: Publish Code Coverage Results
+      #   inputs:
+      #     summaryFileLocation: '$(Build.SourcesDirectory)/**/Coverage/coverage.cobertura.xml'
+      - task: SonarCloudAnalyze@2
+        displayName: Sonar Scan Run
+        inputs:
+          jdkversion: 'JAVA_HOME_17_X64'
+      - task: SonarCloudPublish@2
+        displayName: Publish Sonar Results
+        inputs:
+          pollingTimeoutSec: '100'
+      - task: DotNetCoreCLI@2
+        displayName: Publish Build Artifact
+        inputs:
+          command: 'publish'
+          publishWebProjects: true
+          arguments: '--configuration $(BuildConfiguration) --output $(Build.ArtifactStagingDirectory)'
+          zipAfterPublish: false
+      - publish: '$(Build.ArtifactStagingDirectory)'
+        displayName: 'Publish Artifact'
+        artifact: buildartifacts
+
+- stage: Docker
+  displayName: Build Docker Image
+  jobs:
+    - job: DockerBuild
+      displayName: Docker Image Build
+      pool:
+        vmImage: $(vmImageName)
+      steps:
+        - download: current
+          artifact: buildartifacts
+        - task: Docker@2
+          displayName: Build and push an image to container registry
+          inputs:
+            buildContext: '$(pipeline.Workspace)/buildartifacts/DevOpsChallenge.SalesApi'
+            containerRegistry: $(dockerRegistryServiceConnection)
+            repository: $(imageRepository)
+            command: 'buildAndPush'
+            Dockerfile: '$(dockerfilePath)'
+            tags: $(tag)
